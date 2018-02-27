@@ -78,8 +78,53 @@ public:
           // Virtual (but not pure) to allow overriding in the leaves.
         }
         virtual string convert(BBlock*) = 0; // Lecture 8 / slide 12.
+
+	virtual void dump(int depth) = 0;
 };
 
+class Variable : public Expression 
+{
+public:
+	string name;
+
+	Variable(string name) :
+		name(name)
+	{
+	}
+
+	string convert(BBlock *out)
+	{
+	}
+
+	void dump(int depth)
+	{
+		for(auto i=0; i<depth; i++)
+			cout << "  ";
+		cout << name << endl;
+	}
+};
+
+class Constant : public Expression
+{ 
+public:
+	int num;
+
+	Constant(int num) :
+		num(num)
+	{
+	}
+
+	string convert(BBlock *out)
+	{
+	}
+
+	void dump(int depth)
+	{
+		for(auto i=0; i<depth; i++)
+			cout << "  ";
+		cout << num << endl;
+	}
+};
 
 class Add : public Expression
 {
@@ -96,6 +141,63 @@ public:
                 // Write three address instructions to output
         }
 
+	void dump(int depth)
+	{
+		for(auto i=0; i<depth; i++)
+			cout << "  ";
+		lhs->dump(depth);
+		cout << "+" << endl;
+		rhs->dump(depth);
+	}
+
+};
+
+class Mult : public Expression
+{
+public:
+	Expression *lhs, *rhs;
+
+	Mult(Expression* lhs, Expression* rhs) :
+		lhs(lhs), rhs(rhs)
+	{
+	}
+
+	string convert(BBlock* out)
+	{
+	}
+
+	void dump(int depth)
+	{
+		for(auto i=0; i<depth; i++)
+			cout << "  ";
+		lhs->dump(depth);
+		cout << "*" << endl;
+		rhs->dump(depth);
+	}
+};
+
+class Equality : public Expression 
+{
+public:
+	Expression *lhs, *rhs;
+
+	Equality(Expression* lhs, Expression *rhs) :
+		lhs(lhs), rhs(rhs)
+	{
+	}
+
+	string convert(BBlock *out)
+	{
+	}
+
+	void dump(int depth)
+	{
+		for(auto i=0; i<depth; i++)
+			cout << "  ";
+		cout << "==" << endl;
+		lhs->dump(depth);
+		rhs->dump(depth);
+	}
 };
 
 
@@ -109,6 +211,34 @@ public:
         {
         }
         virtual BBlock* convert(BBlock *) = 0;
+
+	virtual void dump(int depth=1) = 0;
+};
+
+class If : public Statement
+{
+public:
+	Expression *cond;
+	Statement *lhs, *rhs;
+
+	If(Expression *cond, Statement *lhs, Statement *rhs) :
+		cond(cond), lhs(lhs), rhs(rhs)
+	{
+	}
+
+	BBlock* convert(BBlock *out)
+	{
+	}
+
+	void dump(int depth)
+	{
+		for(auto i=0; i<depth; i++)
+			cout << "  ";
+		cout << "Statement(I)" << endl;
+		cond->dump(depth);
+		lhs->dump(depth+1);
+		rhs->dump(depth+1);
+	}
 };
 
 
@@ -127,8 +257,38 @@ public:
         {
                 // Write three address instructions to output
         }
+
+	void dump(int depth)
+	{
+		for(auto i=0; i<depth; i++)
+			cout << "  ";
+		cout << "Statement(A)" << endl;
+		lhs->dump(depth+1);
+	      	rhs->dump(depth);
+	}
 };
 
+class Seq : public Statement
+{
+public:
+	list<Statement*> seqList;
+
+	Seq(list<Statement*> seqList) :
+		seqList(seqList)
+	{
+	}
+
+	BBlock* convert(BBlock *out)
+	{
+	}
+
+	void dump(int depth=1)
+	{
+		cout << "Statement(S)" << endl;
+		for(auto i : seqList)
+			i->dump(depth);
+	}
+};
 
 /* Test cases */
 Statement *test = new Seq({
@@ -164,6 +324,48 @@ Statement *test = new Seq({
                           )
 });
 
+Statement *test22 = new Seq({
+		new Assignment(
+				"x",
+				new Add(
+					new Variable("x"),
+					new Constant(1)
+				       )
+			      ),
+		new Assignment(
+				"y",
+				new Add(
+					new Variable("x"),
+					new Constant(1)
+				       )
+			      ),
+		new If(
+				new Equality(
+					new Variable("x"),
+					new Constant(0)
+					),
+				new If(
+					new Equality(
+						new Variable("y"),
+						new Constant(0)
+						),
+					new Assignment(
+						"x",
+						new Constant(1)
+						),
+					new Assignment(
+						"y",
+						new Constant(2)
+						)
+				      ),
+				new Assignment(
+					"y",
+					new Constant(3)
+					)
+				)
+});
+
+				
 
 /*
  * Iterate over each basic block that can be reached from the entry point
@@ -187,4 +389,10 @@ void dumpCFG(BBlock *start)
                 if(next->fExit!=NULL && done.find(next->fExit)==done.end())
                         todo.insert(next->fExit);
         }
+}
+
+int main(int argc, char *argv[])
+{
+	test->dump();
+	return 0;
 }
