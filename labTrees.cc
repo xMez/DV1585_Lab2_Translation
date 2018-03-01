@@ -56,8 +56,10 @@ public:
                 cout << name << endl;
                 for(auto i : instructions)
                         i.dump();
-                cout << "True:  " << tExit << endl;
-                cout << "False: " << fExit << endl;
+		if(tExit)
+                	cout << "True:  " << tExit->name << endl;
+		if(fExit)
+                	cout << "False: " << fExit->name << endl;
         }
 };
 int BBlock::nCounter = 0;
@@ -66,6 +68,8 @@ int BBlock::nCounter = 0;
 /******************** Expressions ********************/
 class Expression
 {
+private:
+	static int nCounter;
 public:
         string name;
 
@@ -74,6 +78,7 @@ public:
         }
         virtual string makeNames() 
         {
+		return name != "" ? name : "_t" + to_string(nCounter++);
           // Lecture 8 / slide 11.
           // Virtual (but not pure) to allow overriding in the leaves.
         }
@@ -81,6 +86,7 @@ public:
 
 	virtual void dump(int depth) = 0;
 };
+int Expression::nCounter = 0;
 
 class Variable : public Expression 
 {
@@ -94,6 +100,7 @@ public:
 
 	string convert(BBlock *out)
 	{
+		return name;
 	}
 
 	void dump(int depth)
@@ -107,15 +114,16 @@ public:
 class Constant : public Expression
 { 
 public:
-	int num;
+	string num;
 
 	Constant(int num) :
-		num(num)
+		num(to_string(num))
 	{
 	}
 
 	string convert(BBlock *out)
 	{
+		return num;
 	}
 
 	void dump(int depth)
@@ -139,6 +147,9 @@ public:
         string convert(BBlock* out)
         {
                 // Write three address instructions to output
+		string var = makeNames();
+		out->instructions.push_back(ThreeAd(var, '+', lhs->convert(out), rhs->convert(out)));
+		return var;
         }
 
 	void dump(int depth)
@@ -164,6 +175,9 @@ public:
 
 	string convert(BBlock* out)
 	{
+		string var = makeNames();
+		out->instructions.push_back(ThreeAd(var, '*', lhs->convert(out), rhs->convert(out)));
+		return var;
 	}
 
 	void dump(int depth)
@@ -188,6 +202,9 @@ public:
 
 	string convert(BBlock *out)
 	{
+		string var = makeNames();
+		out->instructions.push_back(ThreeAd(var, '=', lhs->convert(out), rhs->convert(out)));
+		return var;
 	}
 
 	void dump(int depth)
@@ -228,6 +245,21 @@ public:
 
 	BBlock* convert(BBlock *out)
 	{
+		cond->convert(out);
+
+		BBlock* retBlock = new BBlock();
+
+		BBlock* trueBlock = new BBlock();
+		out->tExit = trueBlock;
+		trueBlock = lhs->convert(trueBlock);
+		trueBlock->tExit = retBlock;
+
+		BBlock* falseBlock = new BBlock();
+		out->fExit = falseBlock;
+		falseBlock = rhs->convert(falseBlock);
+		falseBlock->tExit = retBlock;
+
+		return retBlock;
 	}
 
 	void dump(int depth)
@@ -256,13 +288,16 @@ public:
         BBlock* convert(BBlock *out)
         {
                 // Write three address instructions to output
+		string var = rhs->convert(out);
+		out->instructions.push_back(ThreeAd(lhs->convert(out), 'c', var, var));
+		return out;
         }
 
 	void dump(int depth)
 	{
 		for(auto i=0; i<depth; i++)
 			cout << "  ";
-		cout << "Statement(A)" << endl;
+		cout << "StretBlockment(A)" << endl;
 		lhs->dump(depth+1);
 	      	rhs->dump(depth);
 	}
@@ -280,6 +315,9 @@ public:
 
 	BBlock* convert(BBlock *out)
 	{
+		for(auto i : seqList)
+			out = i->convert(out);
+		return out;
 	}
 
 	void dump(int depth=1)
@@ -393,6 +431,9 @@ void dumpCFG(BBlock *start)
 
 int main(int argc, char *argv[])
 {
-	test->dump();
+	BBlock* block = new BBlock();
+	test22->convert(block);
+	dumpCFG(block);
+	test22->dump();
 	return 0;
 }
